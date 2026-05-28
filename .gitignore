@@ -1,0 +1,22 @@
+node_modules/
+dist/
+
+# Assembled browser-demo artifacts (reproduced by browser-demo/build-demo.mjs)
+browser-demo/dist/
+browser-demo/webix/
+browser-demo/containers/
+browser-demo/vendor/
+
+# Local server / logs
+*.log
+**/.server.pid
+
+# gm chain workspace
+.gm/
+
+# misc
+.env*
+.vercel
+.DS_Store
+.gm/browser-profile/
+.gm/browser-profile-*/

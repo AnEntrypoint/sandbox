@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <title>@anentrypoint/sandbox — in-browser x86_64 Linux microVM</title>
+  <link rel="preload" href="./containers/blinkenlib.wasm" as="fetch" type="application/wasm" crossorigin />
+  <script type="importmap">
+  {
+    "imports": {
+      "@anentrypoint/sandbox": "./dist/index.js",
+      "zod": "./vendor/zod.js",
+      "webix/blink-browser": "./webix/x86_64-blink-browser.js",
+      "webix/blink-core": "./webix/blink-core.js",
+      "webix/blink": "./webix/x86_64-blink-browser.js"
+    }
+  }
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #0b0e14; color: #cdd6f4; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    header { padding: 16px 20px; border-bottom: 1px solid #1f2430; }
+    h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .sub { color: #7f8696; font-size: 12px; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+    .badge.booting { background: #2a2f3a; color: #f9e2af; }
+    .badge.ok { background: #1e3a2a; color: #a6e3a1; }
+    .badge.err { background: #3a1e22; color: #f38ba8; }
+    #console { padding: 16px 20px; white-space: pre-wrap; }
+    .cmd { color: #89b4fa; }
+    .out { color: #cdd6f4; }
+    .meta { color: #7f8696; }
+    .stderr { color: #f38ba8; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>@anentrypoint/sandbox <span id="status" class="badge booting">booting…</span></h1>
+    <div class="sub">A self-contained x86_64 Linux userspace (Blink WASM) running entirely in this tab — no server, no Vercel.</div>
+  </header>
+  <div id="console"></div>
+
+  <script type="module">
+    import { Sandbox } from "@anentrypoint/sandbox";
+
+    const consoleEl = document.getElementById("console");
+    const statusEl = document.getElementById("status");
+    const demo = { ready: false, results: {}, error: null, log: [] };
+    window.__demo = demo;
+
+    const line = (cls, text) => {
+      const div = document.createElement("div");
+      div.className = cls;
+      div.textContent = text;
+      consoleEl.appendChild(div);
+      demo.log.push(text);
+    };
+    const setStatus = (cls, text) => { statusEl.className = "badge " + cls; statusEl.textContent = text; };
+
+    async function run() {
+      try {
+        const ASSETS = new URL("./containers/", document.baseURI).href;
+        line("meta", `booting Blink microVM (wasm + alpine rootfs) from ${ASSETS}`);
+        const t0 = performance.now();
+        const sandbox = await Sandbox.create({
+          wasmUrl: ASSETS + "blinkenlib.wasm",
+          glueUrl: ASSETS + "blinkenlib.js",
+          rootfsUrl: ASSETS + "alpine-minirootfs-x86_64.tar.gz",
+        });
+        const bootMs = Math.round(performance.now() - t0);
+        line("meta", `booted in ${bootMs}ms`);
+        demo.results.bootMs = bootMs;
+
+        const sh = async (label, cmd, args) => {
+          line("cmd", `$ ${cmd} ${args.join(" ")}`);
+          const r = await sandbox.runCommand(cmd, args);
+          const out = (await r.stdout()).trimEnd();
+          if (out) line("out", out);
+          demo.results[label] = { exitCode: r.exitCode, stdout: out };
+          return out;
+        };
+
+        await sh("echo", "echo", ["hello", "browser"]);
+        await sh("uname", "uname", ["-a"]);
+
+        line("cmd", `$ writeFiles /tmp/from-browser.txt`);
+        await sandbox.writeFiles([{ path: "/tmp/from-browser.txt", content: "written inside the browser microVM\n" }]);
+        const catOut = await sh("cat", "cat", ["/tmp/from-browser.txt"]);
+        demo.results.writeRead = catOut.includes("written inside the browser microVM");
+
+        await sh("ls", "ls", ["/"]);
+        const missing = await sandbox.runCommand("definitely-not-real", []);
+        demo.results.missingExit = missing.exitCode;
+        line("meta", `unknown command exit code: ${missing.exitCode}`);
+
+        demo.results.echoOk = demo.results.echo?.stdout?.includes("hello browser");
+        demo.results.unameOk = demo.results.uname?.stdout?.includes("x86_64");
+        const allOk = demo.results.echoOk && demo.results.unameOk &&
+          demo.results.writeRead && demo.results.missingExit === 127;
+        demo.results.allOk = allOk;
+        setStatus(allOk ? "ok" : "err", allOk ? "running ✓" : "completed with issues");
+        line("meta", allOk ? "all checks passed — a real x86_64 Linux microVM ran in your browser." : "see results");
+      } catch (e) {
+        demo.error = String(e && e.stack || e);
+        setStatus("err", "error");
+        line("stderr", demo.error);
+      } finally {
+        demo.ready = true;
+      }
+    }
+    run();
+  </script>
+</body>
+</html>

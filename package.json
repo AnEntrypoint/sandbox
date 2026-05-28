@@ -1,6 +1,6 @@
 {
   "name": "@anentrypoint/sandbox",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Self-contained sandbox SDK: run a real x86_64 Linux userspace in the browser or Node, with no server and no network — backed by the webix Blink WASM emulator.",
   "type": "module",
   "main": "dist/index.cjs",

@@ -162,8 +162,20 @@ describe("FileSystem", () => {
     });
 
     it("returns Dirent objects with withFileTypes", async () => {
+      // withFileTypes parses `ls -la` (busybox find lacks GNU -printf). The
+      // leading mode char gives the type; the trailing field is the name.
       sandbox.runCommand.mockResolvedValue(
-        mockCommandResult("file.txt|f\nsubdir|d\nlink|l\n"),
+        mockCommandResult(
+          [
+            "total 12",
+            "drwxr-xr-x    2 root     root          4096 Jan  1 00:00 .",
+            "drwxr-xr-x    3 root     root          4096 Jan  1 00:00 ..",
+            "-rw-r--r--    1 root     root            11 Jan  1 00:00 file.txt",
+            "drwxr-xr-x    2 root     root          4096 Jan  1 00:00 subdir",
+            "lrwxrwxrwx    1 root     root             8 Jan  1 00:00 link -> file.txt",
+            "",
+          ].join("\n"),
+        ),
       );
       const result = await fs.readdir("/mydir", { withFileTypes: true });
       expect(result).toHaveLength(3);

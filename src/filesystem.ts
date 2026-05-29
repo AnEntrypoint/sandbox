@@ -389,12 +389,14 @@ export class FileSystem {
   ): Promise<string[] | Dirent[]> {
     "use step";
     if (options?.withFileTypes) {
-      // Use find to get name and type in one pass
-      const result = await this.sandbox.runCommand(
-        "find",
-        [path, "-maxdepth", "1", "-mindepth", "1", "-printf", "%f|%y\\n"],
-        { signal: options?.signal },
-      );
+      // List name + type in one pass via `ls -la`. busybox `find` does NOT
+      // support GNU `-printf` (it errors `find: unrecognized: -printf`), so we
+      // parse `ls -la` instead: the first column's leading char encodes the
+      // file type (-=file d=dir l=link b/c/p/s) and the trailing field is the
+      // name. Portable across busybox + coreutils.
+      const result = await this.sandbox.runCommand("ls", ["-la", path], {
+        signal: options?.signal,
+      });
       if (result.exitCode !== 0) {
         const stderr = await result.stderr();
         if (stderr.includes("No such file or directory")) {
@@ -405,7 +407,28 @@ export class FileSystem {
       const stdout = await result.stdout();
       const lines = stdout.trim().split("\n").filter(Boolean);
 
-      return lines.map((line) => parseDirent(line, path));
+      const dirents: Dirent[] = [];
+      for (const line of lines) {
+        // Skip the `total N` header line ls emits.
+        if (/^total\s+\d+/.test(line)) continue;
+        // mode field is the first whitespace-delimited token; its first char is
+        // the type. Fields 1..8 are mode/links/owner/group/size/date(3)/name;
+        // the name is everything after the 8th field (handles spaces).
+        const m = line.match(
+          /^([-dlbcps])\S*\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+(.+)$/,
+        );
+        if (!m) continue;
+        const typeChar = m[1];
+        let name = m[2];
+        // For symlinks `ls -l` prints "name -> target"; keep just the name.
+        if (typeChar === "l") name = name.split(" -> ")[0];
+        // Drop the . and .. entries (find -mindepth 1 excluded them).
+        if (name === "." || name === "..") continue;
+        // Map ls mode char to the find `%y` letter parseDirent expects.
+        const findType = typeChar === "-" ? "f" : typeChar;
+        dirents.push(parseDirent(`${name}|${findType}`, path));
+      }
+      return dirents;
     }
 
     const result = await this.sandbox.runCommand("ls", ["-1", path], {

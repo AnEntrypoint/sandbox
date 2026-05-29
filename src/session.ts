@@ -542,12 +542,13 @@ export class Session {
     }
 
     // downloadFile writes to the local filesystem and is Node-only; its Node
-    // builtins are imported dynamically so they never enter a browser bundle.
-    const { pipeline } = await import("stream/promises");
-    const { createWriteStream } = await import("fs");
-    const { mkdir } = await import("fs/promises");
-    const { dirname, resolve } = await import("path");
-    const { Readable } = await import("stream");
+    // builtins are imported dynamically AND bundler-ignored so they never enter
+    // (or break) a browser bundle (Next/Turbopack/vite).
+    const { pipeline } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "stream/promises");
+    const { createWriteStream } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "fs");
+    const { mkdir } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "fs/promises");
+    const { dirname, resolve } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "path");
+    const { Readable } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "stream");
 
     const dstPath = resolve(dst.cwd ?? "", dst.path);
     if (opts?.mkdirRecursive) {

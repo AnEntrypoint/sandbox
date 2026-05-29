@@ -545,6 +545,17 @@ export class WebixApiClient {
     return this.host.fbInfo();
   }
 
+  /**
+   * Snapshot the guest framebuffer pixels as a contiguous RGBA Uint8ClampedArray
+   * (assembled page-by-page by the host), or null if no guest registered a
+   * framebuffer. For callers that drive their own blit loop (e.g. a render-once
+   * GUI app) instead of attachDisplay.
+   */
+  async displayPixels() {
+    await this.ensureBooted();
+    return this.host.fbView();
+  }
+
   /** Capability flags of the running Blink build. */
   async capabilities() {
     await this.ensureBooted();

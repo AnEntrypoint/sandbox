@@ -941,6 +941,22 @@ export class Sandbox {
   }
 
   /**
+   * Snapshot the guest framebuffer pixels as a contiguous RGBA buffer
+   * (assembled page-by-page), or `null` if no guest registered a framebuffer.
+   * For driving a custom blit loop instead of {@link attachDisplay}.
+   */
+  async displayPixels(): Promise<{
+    pixels: Uint8ClampedArray;
+    width: number;
+    height: number;
+    stride: number;
+    generation: number;
+  } | null> {
+    const client = await this.ensureClient();
+    return client.displayPixels();
+  }
+
+  /**
    * Capability flags of the running Blink build (threads, sockets, framebuffer,
    * pipe, fork, vectorISA, ...).
    */

@@ -119,7 +119,12 @@ export class WebixHost {
       // scope). Harmless on the single-thread build.
       const g = globalThis as { self?: unknown };
       if (typeof g.self === "undefined") g.self = globalThis;
-      const { createBlinkHost } = await import("webix/blink");
+      // Node-only host (pulls node:fs via webix/blink). Marked bundler-ignored
+      // so browser bundlers (Next/Turbopack) don't try to chunk it into the
+      // client build — this branch only runs under Node.
+      const { createBlinkHost } = await import(
+        /* webpackIgnore: true */ /* @vite-ignore */ "webix/blink"
+      );
       this.core = await createBlinkHost({
         wasmPath: this.opts.wasmPath ?? wasmUrl.replace(/^\//, ""),
         gluePath: this.opts.gluePath ?? glueUrl.replace(/^\//, ""),

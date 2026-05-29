@@ -90,6 +90,28 @@ interface BlinkCore {
     stderr: string;
     signal: { sig: number; code: number } | null;
   }>;
+  /**
+   * Run two guests concurrently on their own worker pthreads — an X server
+   * (Xvfb) that serves forever and an X client that connects to it over the
+   * in-process AF_UNIX layer. Returns once the client exits (or the overall
+   * timeout fires); the server is left RUNNING.
+   */
+  runConcurrent(
+    serverBytes: Uint8Array,
+    clientBytes: Uint8Array,
+    opts?: {
+      serverArgv?: string[];
+      serverProgname?: string;
+      clientArgv?: string[];
+      clientProgname?: string;
+      clientDelayMs?: number;
+      overallTimeoutMs?: number;
+    },
+  ): Promise<{
+    timedOut: boolean;
+    client: { exitCode: number | string; stdout: string; stderr: string };
+    server: { exitCode: number | string; stdout: string; stderr: string };
+  }>;
   pushStdin(bytes: Uint8Array | number[]): void;
   runShellScript(
     busyboxBytes: Uint8Array,

@@ -908,6 +908,32 @@ export class Sandbox {
   }
 
   /**
+   * Run an X server (e.g. Xvfb) and an X client concurrently in-page, each on
+   * its own worker pthread, talking over the in-process AF_UNIX layer (no
+   * sockets, no network). Resolves when the client exits; the server is left
+   * running. Provide each program as raw `bytes` or a guest-FS `path`.
+   *
+   * @example
+   * const r = await sandbox.runConcurrent(
+   *   { path: "/usr/bin/Xvfb", argv: [":99","-screen","0","640x480x16","-ac","-noreset","-nolock"] },
+   *   { path: "/usr/bin/xdpyinfo", argv: ["-display",":99"] },
+   * );
+   * console.log(r.client.exitCode, r.client.stdout);
+   */
+  async runConcurrent(
+    server: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string },
+    client: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string },
+    opts?: { clientDelayMs?: number; overallTimeoutMs?: number },
+  ): Promise<{
+    timedOut: boolean;
+    client: { exitCode: number | string; stdout: string; stderr: string };
+    server: { exitCode: number | string; stdout: string; stderr: string };
+  }> {
+    const client_ = await this.ensureClient();
+    return client_.runConcurrent(server, client, opts);
+  }
+
+  /**
    * Push a single input event into the guest input device (host -> guest).
    *
    * @param evt - `{ type: "key"|"motion"|"button", code?, button?, x?, y?, down? }`.

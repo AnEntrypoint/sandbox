@@ -219,6 +219,43 @@ export class WebixHost {
     return run;
   }
 
+  /**
+   * Run an X server (Xvfb) and an X client concurrently in-page, each on its
+   * own worker pthread, talking over blink's in-process AF_UNIX layer. Resolves
+   * when the client exits (server kept RUNNING). Serialized through the run
+   * queue like runElf — it holds the host for its whole duration.
+   */
+  runConcurrent(
+    server: { bytes: Uint8Array; argv?: string[]; progname?: string },
+    client: { bytes: Uint8Array; argv?: string[]; progname?: string },
+    opts?: { clientDelayMs?: number; overallTimeoutMs?: number },
+  ): Promise<{
+    timedOut: boolean;
+    client: { exitCode: number | string; stdout: string; stderr: string };
+    server: { exitCode: number | string; stdout: string; stderr: string };
+  }> {
+    const run = this.runQueue.then(async () => {
+      const core = this.ensureCore();
+      if (typeof core.runConcurrent !== "function") {
+        throw new Error(
+          "webix: runConcurrent missing (rebuild blink/blink-core)",
+        );
+      }
+      return core.runConcurrent(server.bytes, client.bytes, {
+        serverArgv: server.argv ?? [],
+        serverProgname: server.progname ?? "/xserver",
+        clientArgv: client.argv ?? [],
+        clientProgname: client.progname ?? "/xclient",
+        ...opts,
+      });
+    });
+    this.runQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
   /** Run a command via busybox: `busybox <argv...>` (applet dispatch). */
   runBusybox(
     argv: string[],

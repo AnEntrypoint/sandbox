@@ -517,6 +517,30 @@ export class WebixApiClient {
     this.host.restore(s.blink);
   }
 
+  // ── Concurrent X server + client ───────────────────────────────────────
+
+  /**
+   * Run an X server (Xvfb) and an X client concurrently in-page (each on its
+   * own worker pthread), talking over blink's in-process AF_UNIX layer.
+   * Resolves when the client exits; the server stays RUNNING. Bytes are read
+   * from the guest FS paths if not supplied.
+   */
+  async runConcurrent(
+    server: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string },
+    client: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string },
+    opts?: { clientDelayMs?: number; overallTimeoutMs?: number },
+  ) {
+    await this.ensureBooted();
+    const fs = this.host.fs;
+    const sBytes = server.bytes ?? (fs.readFile(server.path!) as Uint8Array);
+    const cBytes = client.bytes ?? (fs.readFile(client.path!) as Uint8Array);
+    return this.host.runConcurrent(
+      { bytes: sBytes, argv: server.argv, progname: server.progname },
+      { bytes: cBytes, argv: client.argv, progname: client.progname },
+      opts,
+    );
+  }
+
   // ── Display + input (in-browser framebuffer device) ────────────────────
 
   /** Attach a canvas to the guest framebuffer (rAF blit + input forwarding). */

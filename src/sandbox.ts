@@ -545,6 +545,7 @@ export class Sandbox {
     const runtime =
       params && "runtime" in params ? (params.runtime as string) : undefined;
     const client = new WebixApiClient({
+      onProgress: params?.onProgress,
       wasmUrl: params?.wasmUrl,
       glueUrl: params?.glueUrl,
       rootfsUrl: params?.rootfsUrl,

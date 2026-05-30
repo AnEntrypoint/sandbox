@@ -11,7 +11,16 @@
  * works in-process); fork() remains absent (emscripten limitation).
  */
 
+/** Boot progress stages emitted by {@link WebixHost.boot}, in order. */
+export type BootStage =
+  | "runtime"   // fetching + instantiating the wasm runtime
+  | "rootfs"    // fetching + decompressing the root filesystem
+  | "mount"     // mounting the rootfs + preloading busybox
+  | "ready";    // boot complete
+
 export interface WebixHostOptions {
+  /** Called as boot advances through its stages, for a legible cold-boot UI. */
+  onProgress?: (stage: BootStage) => void;
   /** URL of the Blink wasm. Defaults to `/containers/blinkenlib.wasm`. */
   wasmUrl?: string;
   /** URL of the Blink emscripten glue JS. Defaults to `/containers/blinkenlib.js`. */
@@ -135,9 +144,11 @@ export class WebixHost {
   async boot(): Promise<void> {
     if (this.core) return;
 
+    const progress = this.opts.onProgress ?? (() => {});
     const wasmUrl = this.opts.wasmUrl ?? DEFAULTS.wasmUrl;
     const glueUrl = this.opts.glueUrl ?? DEFAULTS.glueUrl;
 
+    progress("runtime");
     if (isBrowser) {
       const { createBlinkHostBrowser } = await import("webix/blink-browser");
       this.core = await createBlinkHostBrowser({ wasmUrl, glueUrl });
@@ -161,11 +172,13 @@ export class WebixHost {
       });
     }
 
+    progress("rootfs");
     const rootfsBytes =
       this.opts.rootfsTarBytes ??
       (await maybeGunzip(
         await fetchBytes(this.opts.rootfsUrl ?? DEFAULTS.rootfsUrl),
       ));
+    progress("mount");
     this.core.mountTarBytes(rootfsBytes);
 
     // Preload busybox once so each runElf skips the multi-MB FS rewrite.
@@ -175,6 +188,7 @@ export class WebixHost {
     } catch {
       this.busyboxHandle = null;
     }
+    progress("ready");
   }
 
   private ensureCore(): BlinkCore {

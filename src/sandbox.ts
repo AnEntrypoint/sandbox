@@ -993,6 +993,47 @@ export class Sandbox {
   }
 
   /**
+   * Start a PERSISTENT X server (e.g. Xvfb) in-page that keeps serving across
+   * multiple `launchXClient` calls (unlike one-shot `runConcurrent`). The server
+   * VM stays on its worker pthread with an always-on proxy pump so its
+   * framebuffer keeps updating; blit it via `displayPixels()`/`attachDisplay()`
+   * on rAF meanwhile. Resolves once the server is spawned.
+   *
+   * @example
+   * await sandbox.startXServer({ path: "/usr/bin/Xvfb", argv: [":99","-screen","0","800x600x16","-ac","-noreset","-nolock"] });
+   * await sandbox.launchXClient({ path: "/usr/bin/xclock", argv: ["-display",":99"] });
+   */
+  async startXServer(
+    server: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string },
+  ): Promise<number> {
+    const client_ = await this.ensureClient();
+    return client_.startXServer(server);
+  }
+
+  /**
+   * Launch an X client against the running persistent X server. Resolves with
+   * the client's exit when it exits; the server keeps serving.
+   */
+  async launchXClient(
+    client: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string; timeoutMs?: number },
+  ): Promise<{ timedOut: boolean; exitCode: number | string; stdout: string; stderr: string }> {
+    const client_ = await this.ensureClient();
+    return client_.launchXClient(client);
+  }
+
+  /** Stop the persistent X server's proxy pump. */
+  async stopX(): Promise<void> {
+    const client_ = await this.ensureClient();
+    return client_.stopX();
+  }
+
+  /** Whether a persistent X server is currently running in-page. */
+  async xRunning(): Promise<boolean> {
+    const client_ = await this.ensureClient();
+    return client_.xRunning();
+  }
+
+  /**
    * Push a single input event into the guest input device (host -> guest).
    *
    * @param evt - `{ type: "key"|"motion"|"button", code?, button?, x?, y?, down? }`.

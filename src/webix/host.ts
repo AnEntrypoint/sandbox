@@ -321,6 +321,62 @@ export class WebixHost {
     return run;
   }
 
+  /**
+   * Start a PERSISTENT X server (Xvfb) in-page that keeps serving while clients
+   * come and go (unlike runConcurrent, which is one-shot). The server VM stays
+   * on its worker pthread with an always-on proxy pump so its framebuffer keeps
+   * updating; the host can blit fbView() on rAF meanwhile. NOT enqueued on the
+   * run queue (it never finishes) — launchXClient() serializes the clients.
+   */
+  async startXServer(
+    server: { bytes: Uint8Array; argv?: string[]; progname?: string },
+  ): Promise<number> {
+    const core = this.ensureCore() as any;
+    if (typeof core.startXServer !== "function") {
+      throw new Error("webix: startXServer missing (rebuild blink-core)");
+    }
+    return core.startXServer(server.bytes, {
+      argv: server.argv ?? [],
+      progname: server.progname ?? "/xserver",
+    });
+  }
+
+  /**
+   * Launch an X client against the running persistent server. Resolves with the
+   * client's exit when it exits; the server keeps serving. Serialized on the run
+   * queue so only one client launch is in flight at a time.
+   */
+  launchXClient(
+    client: { bytes: Uint8Array; argv?: string[]; progname?: string; timeoutMs?: number },
+  ): Promise<{ timedOut: boolean; exitCode: number | string; stdout: string; stderr: string }> {
+    const run = this.runQueue.then(async () => {
+      const core = this.ensureCore() as any;
+      if (typeof core.launchXClient !== "function") {
+        throw new Error("webix: launchXClient missing (rebuild blink-core)");
+      }
+      return core.launchXClient(client.bytes, {
+        argv: client.argv ?? [],
+        progname: client.progname ?? "/xclient",
+        timeoutMs: client.timeoutMs ?? 60000,
+      });
+    });
+    this.runQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  /** Stop the persistent X server's proxy pump (VMs reaped on teardown). */
+  stopX(): void {
+    (this.ensureCore() as any).stopX?.();
+  }
+
+  /** Whether a persistent X server is currently running. */
+  xRunning(): boolean {
+    return !!(this.ensureCore() as any).xRunning?.();
+  }
+
   /** Run a command via busybox: `busybox <argv...>` (applet dispatch). */
   runBusybox(
     argv: string[],

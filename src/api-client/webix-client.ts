@@ -541,6 +541,49 @@ export class WebixApiClient {
     );
   }
 
+  /**
+   * Start a PERSISTENT X server (Xvfb) in-page that keeps serving across
+   * multiple client launches (unlike one-shot runConcurrent). Returns once the
+   * server VM is spawned + its proxy pump is running; the framebuffer updates
+   * continuously so the host can blit it on rAF. Bytes read from the guest FS
+   * path if not supplied.
+   */
+  async startXServer(
+    server: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string },
+  ): Promise<number> {
+    await this.ensureBooted();
+    const fs = this.host.fs;
+    const sBytes = server.bytes ?? (fs.readFile(server.path!) as Uint8Array);
+    return this.host.startXServer({ bytes: sBytes, argv: server.argv, progname: server.progname });
+  }
+
+  /**
+   * Launch an X client against the running persistent X server. Resolves with
+   * the client's exit; the server keeps serving.
+   */
+  async launchXClient(
+    client: { bytes?: Uint8Array; path?: string; argv?: string[]; progname?: string; timeoutMs?: number },
+  ) {
+    await this.ensureBooted();
+    const fs = this.host.fs;
+    const cBytes = client.bytes ?? (fs.readFile(client.path!) as Uint8Array);
+    return this.host.launchXClient({
+      bytes: cBytes, argv: client.argv, progname: client.progname, timeoutMs: client.timeoutMs,
+    });
+  }
+
+  /** Stop the persistent X server's proxy pump. */
+  async stopX(): Promise<void> {
+    await this.ensureBooted();
+    this.host.stopX();
+  }
+
+  /** Whether a persistent X server is currently running in-page. */
+  async xRunning(): Promise<boolean> {
+    await this.ensureBooted();
+    return this.host.xRunning();
+  }
+
   // ── Display + input (in-browser framebuffer device) ────────────────────
 
   /** Attach a canvas to the guest framebuffer (rAF blit + input forwarding). */

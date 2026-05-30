@@ -918,6 +918,43 @@ export class Sandbox {
    * await sandbox.fs.writeFile("/persist/notes.txt", "hi");
    * await sandbox.syncPersist(); // persisted across reloads
    */
+  /**
+   * Browse the in-page Alpine apk catalog (merged APKINDEX), replacing the
+   * removed remote /packages service. `gui:true` filters to apps that depend on
+   * an X/display lib. Returns `{packages, total}` for pagination.
+   */
+  async pkgSearch(
+    query: string,
+    opts?: { gui?: boolean; offset?: number; limit?: number },
+  ): Promise<{ packages: { name: string; version: string; summary: string }[]; total: number }> {
+    const client = await this.ensureClient();
+    return client.pkgSearch(query, opts);
+  }
+
+  /** Repo metadata for one apk package (version, summary, depends, repo). */
+  async pkgInfo(name: string) {
+    const client = await this.ensureClient();
+    return client.pkgInfo(name);
+  }
+
+  /** Install an apk package (+ deps) into the guest FS, in-page. */
+  async pkgInstall(name: string) {
+    const client = await this.ensureClient();
+    return client.pkgInstall(name);
+  }
+
+  /** Remove an installed apk package (unlink its files + drop the db entry). */
+  async pkgRemove(name: string) {
+    const client = await this.ensureClient();
+    return client.pkgRemove(name);
+  }
+
+  /** List packages installed via the in-page apk layer. */
+  async pkgInstalled() {
+    const client = await this.ensureClient();
+    return client.pkgInstalled();
+  }
+
   async persistDir(guestDir?: string): Promise<string> {
     const client = await this.ensureClient();
     return client.persistDir(guestDir);

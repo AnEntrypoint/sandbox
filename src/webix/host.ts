@@ -215,6 +215,43 @@ export class WebixHost {
     return this.ensureCore().syncPersist();
   }
 
+  // ---- apk package manager (in-page, replaces the removed remote service) ----
+  // Lazily build a createApk bound to this host. The apk layer fetches Alpine
+  // repo indexes + .apk tarballs through a CORS proxy and unpacks them into the
+  // guest FS (host-orchestrated; the guest itself makes no network calls).
+  private apkInstance: {
+    search(q: string, o?: { gui?: boolean; offset?: number; limit?: number }): Promise<{ packages: { name: string; version: string; summary: string }[]; total: number }>;
+    pkgInfo(name: string): Promise<{ name: string; version: string; summary: string; depends: string[]; repo: string } | null>;
+    addByName(name: string): Promise<unknown>;
+    remove(name: string): { name: string; removed: boolean };
+    list(): { name: string; version: string; fileCount: number }[];
+    isInstalled(name: string): boolean;
+  } | null = null;
+
+  private async ensureApk() {
+    if (this.apkInstance) return this.apkInstance;
+    this.ensureCore();
+    const { createApk } = await import("webix/alpine-apk");
+    this.apkInstance = createApk(this.core, {}) as typeof this.apkInstance;
+    return this.apkInstance!;
+  }
+
+  async pkgSearch(query: string, opts?: { gui?: boolean; offset?: number; limit?: number }) {
+    return (await this.ensureApk()).search(query, opts);
+  }
+  async pkgInfo(name: string) {
+    return (await this.ensureApk()).pkgInfo(name);
+  }
+  async pkgInstall(name: string) {
+    return (await this.ensureApk()).addByName(name);
+  }
+  async pkgRemove(name: string) {
+    return (await this.ensureApk()).remove(name);
+  }
+  async pkgInstalled() {
+    return (await this.ensureApk()).list();
+  }
+
   /** Whether `/bin/busybox` exists in the mounted rootfs. */
   get hasBusybox(): boolean {
     return this.busyboxHandle !== null;

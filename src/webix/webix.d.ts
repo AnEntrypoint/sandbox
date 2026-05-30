@@ -136,6 +136,27 @@ declare module "webix/blink-core" {
   }): Promise<BlinkCore>;
 }
 
+declare module "webix/alpine-apk" {
+  interface ApkRepo {
+    search(
+      query: string,
+      opts?: { gui?: boolean; offset?: number; limit?: number },
+    ): Promise<{ packages: { name: string; version: string; summary: string }[]; total: number }>;
+    pkgInfo(name: string): Promise<{ name: string; version: string; summary: string; depends: string[]; repo: string } | null>;
+  }
+  interface Apk extends ApkRepo {
+    addByName(name: string): Promise<unknown>;
+    remove(name: string): { name: string; removed: boolean };
+    list(): { name: string; version: string; fileCount: number }[];
+    isInstalled(name: string): boolean;
+    repo: ApkRepo;
+  }
+  export function createApk(
+    host: unknown,
+    opts?: { root?: string; fetchImpl?: unknown; repoOpts?: unknown },
+  ): Apk;
+}
+
 declare module "webix/blink" {
   export function createBlinkHost(options?: {
     wasmPath?: string;

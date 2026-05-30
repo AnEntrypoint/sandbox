@@ -544,6 +544,27 @@ export class WebixApiClient {
   // ── Display + input (in-browser framebuffer device) ────────────────────
 
   /** Attach a canvas to the guest framebuffer (rAF blit + input forwarding). */
+  async pkgSearch(query: string, opts?: { gui?: boolean; offset?: number; limit?: number }) {
+    await this.ensureBooted();
+    return this.host.pkgSearch(query, opts);
+  }
+  async pkgInfo(name: string) {
+    await this.ensureBooted();
+    return this.host.pkgInfo(name);
+  }
+  async pkgInstall(name: string) {
+    await this.ensureBooted();
+    return this.host.pkgInstall(name);
+  }
+  async pkgRemove(name: string) {
+    await this.ensureBooted();
+    return this.host.pkgRemove(name);
+  }
+  async pkgInstalled() {
+    await this.ensureBooted();
+    return this.host.pkgInstalled();
+  }
+
   async persistDir(guestDir?: string) {
     await this.ensureBooted();
     return this.host.persistDir(guestDir);

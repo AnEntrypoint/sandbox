@@ -544,6 +544,16 @@ export class WebixApiClient {
   // ── Display + input (in-browser framebuffer device) ────────────────────
 
   /** Attach a canvas to the guest framebuffer (rAF blit + input forwarding). */
+  async persistDir(guestDir?: string) {
+    await this.ensureBooted();
+    return this.host.persistDir(guestDir);
+  }
+
+  async syncPersist() {
+    await this.ensureBooted();
+    return this.host.syncPersist();
+  }
+
   async attachDisplay(canvas: unknown, opts?: { fpsCap?: number }) {
     await this.ensureBooted();
     return this.host.attachDisplay(canvas, opts);

@@ -909,6 +909,27 @@ export class Sandbox {
   }
 
   /**
+   * Mount an IDBFS-backed persistent directory (default `/persist`) and load it
+   * from IndexedDB. Files written under it survive a page reload once
+   * {@link syncPersist} flushes them. In-browser only.
+   *
+   * @example
+   * await sandbox.persistDir("/persist");
+   * await sandbox.fs.writeFile("/persist/notes.txt", "hi");
+   * await sandbox.syncPersist(); // persisted across reloads
+   */
+  async persistDir(guestDir?: string): Promise<string> {
+    const client = await this.ensureClient();
+    return client.persistDir(guestDir);
+  }
+
+  /** Flush the IDBFS-mounted persistent dir to IndexedDB. */
+  async syncPersist(): Promise<void> {
+    const client = await this.ensureClient();
+    return client.syncPersist();
+  }
+
+  /**
    * Run an X server (e.g. Xvfb) and an X client concurrently in-page, each on
    * its own worker pthread, talking over the in-process AF_UNIX layer (no
    * sockets, no network). Resolves when the client exits; the server is left

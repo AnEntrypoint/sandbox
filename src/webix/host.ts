@@ -201,6 +201,20 @@ export class WebixHost {
     return this.ensureCore().Module.FS;
   }
 
+  /**
+   * Mount an IDBFS-backed persistent directory (default `/persist`) and load
+   * its contents from IndexedDB (syncfs in). Files written under it survive a
+   * page reload once {@link syncPersist} is called. Browser-only (IDBFS).
+   */
+  persistDir(guestDir?: string): Promise<string> {
+    return this.ensureCore().persistDir(guestDir);
+  }
+
+  /** Flush the IDBFS-mounted persistent dir to IndexedDB (syncfs out). */
+  syncPersist(): Promise<void> {
+    return this.ensureCore().syncPersist();
+  }
+
   /** Whether `/bin/busybox` exists in the mounted rootfs. */
   get hasBusybox(): boolean {
     return this.busyboxHandle !== null;

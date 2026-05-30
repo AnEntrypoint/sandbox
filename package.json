@@ -24,6 +24,7 @@
   "scripts": {
     "clean": "rm -rf node_modules dist",
     "build": "tsdown",
+    "prepare": "tsdown",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build:demo": "node browser-demo/build-demo.mjs"
